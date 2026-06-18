@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Estacionamento Honda PRO</title>
+
+<style>
+
+body{
+    margin:0;
+    font-family:Arial;
+    background:#222;
+    color:#fff;
+}
+
+.container{
+    display:flex;
+}
+
+#mapWrapper{
+    flex:1;
+    overflow:hidden;
+    position:relative;
+    background:#1a1a1a;
+    cursor:grab;
+}
+
+#map{
+    position:absolute;
+    transform-origin:0 0;
+}
+
+.area{
+    margin:20px;
+    border:2px solid #555;
+    position:relative;
+    width:1200px;
+    height:700px;
+}
+
+.vaga{
+    width:80px;
+    height:140px;
+    background:#444;
+    border:2px dashed #777;
+    position:absolute;
+    cursor:pointer;
+    user-select:none;
+    transition:.1s;
+}
+
+.vaga.editando{
+    border:2px dashed #00ff99;
+    cursor:grab;
+}
+
+.carro{
+    width:100%;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    font-size:10px;
+    text-align:center;
+}
+
+.chassi{
+    background:rgba(0,0,0,0.6);
+    padding:2px;
+    margin-top:4px;
+}
+
+.painel{
+    width:320px;
+    background:#111;
+    padding:10px;
+    border-left:2px solid #444;
+    height:100vh;
+    overflow:auto;
+}
+
+input,
+select,
+button{
+    width:100%;
+    margin-bottom:6px;
+    padding:8px;
+    box-sizing:border-box;
+}
+
+.dashboard{
+    background:#000;
+    padding:10px;
+    margin-bottom:10px;
+}
+
+.toggleOn{
+    background:green;
+    color:#fff;
+}
+
+.toggleOff{
+    background:red;
+    color:#fff;
+}
+
+.loginBox{
+    background:#000;
+    padding:10px;
+    margin-bottom:10px;
+    border:2px solid #333;
+}
+
+.locked{
+    opacity:.5;
+    pointer-events:none;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div id="mapWrapper">
+        <div id="map"></div>
+    </div>
+
+    <div class="painel">
+
+        <!-- LOGIN -->
+
+        <div class="loginBox">
+
+            <h3>🔐 Área Restrita</h3>
+
+            <input
+                id="loginUser"
+                placeholder="Login"
+            >
+
+            <input
+                id="loginPass"
+                type="password"
+                placeholder="Senha"
+            >
+
+            <button onclick="fazerLogin()">
+                Entrar no modo edição
+            </button>
+
+            <button onclick="logout()">
+                Sair do modo edição
+            </button>
+
+            <div id="statusLogin">
+                Modo visualização ativo
+            </div>
+
+        </div>
+
+        <!-- DASHBOARD -->
+
+        <div class="dashboard">
+
+            <h4>📊 Dashboard</h4>
+
+            <div>Total vagas:
+                <span id="tv">0</span>
+            </div>
+
+            <div>Carros:
+                <span id="tc">0</span>
+            </div>
+
+            <div>Ocupadas:
+                <span id="oc">0</span>
+            </div>
+
+            <div>Livres:
+                <span id="lv">0</span>
+            </div>
+
+        </div>
+
+        <!-- PAINEL BLOQUEÁVEL -->
+
+        <div id="painelEdicao" class="locked">
+
+            <select id="modelo">
+
+                <optgroup label="SUV Honda">
+                    <option>HR-V Advance</option>
+                    <option>HR-V EX</option>
+                    <option>HR-V EXL</option>
+                    <option>HR-V Touring</option>
+
+                    <option>WR-V LX</option>
+                    <option>WR-V EX</option>
+                    <option>WR-V EXL</option>
+                </optgroup>
+
+                <optgroup label="Sedan Honda">
+                    <option>City LX</option>
+                    <option>City EX</option>
+                    <option>City EXL</option>
+                    <option>City Touring</option>
+                    <option>Civic EX</option>
+                    <option>Civic Touring</option>
+                </optgroup>
+
+                <optgroup label="Hatch Honda">
+                    <option>City Hatch EXL</option>
+                    <option>City Hatch EX</option>
+                    <option>City Hatch Touring</option>
+                </optgroup>
+
+            </select>
+
+            <input type="color" id="cor">
+
+            <input
+                type="color"
+                id="corTexto"
+                value="#ffffff"
+            >
+
+            <input
+                id="chassi"
+                placeholder="Chassi"
+            >
+
+            <button onclick="addCarro()">
+                Adicionar Carro
+            </button>
+
+            <button onclick="remCarro()">
+                Remover Carro
+            </button>
+
+            <button onclick="rotacionar()">
+                Rotacionar
+            </button>
+
+            <hr>
+
+            <button
+                id="btnDelete"
+                onclick="toggleDelete()"
+            >
+                Excluir OFF
+            </button>
+
+            <button
+                id="btnSnap"
+                onclick="toggleSnap()"
+            >
+                Snap OFF
+            </button>
+
+            <hr>
+
+            <input
+                id="nomeArea"
+                placeholder="Nome bloco"
+            >
+
+            <button onclick="criarArea()">
+                Criar Bloco
+            </button>
+
+            <hr>
+
+            <button onclick="salvar()">
+                Salvar
+            </button>
+
+            <button onclick="reset()">
+                Reset
+            </button>
+
+        </div>
+
+        <hr>
+
+        <input
+            id="busca"
+            placeholder="Buscar chassi..."
+            oninput="buscar()"
+        >
+
+    </div>
+
+</div>
+
+<script>
+
+/* =========================
+   LOGIN
+========================= */
+
+/*
+ALTERE AQUI
+*/
+
+const LOGIN = "Wendel";
+const SENHA = "452159";
+
+let modoEdicao = false;
+
+function fazerLogin(){
+
+    let u =
+        document.getElementById("loginUser").value;
+
+    let s =
+        document.getElementById("loginPass").value;
+
+    if(u === LOGIN && s === SENHA){
+
+        modoEdicao = true;
+
+        document
+        .getElementById("painelEdicao")
+        .classList.remove("locked");
+
+        statusLogin.innerHTML =
+            "✅ Modo edição liberado";
+
+        atualizarBotoes();
+
+        salvarLogin();
+
+        alert("Login realizado");
+
+    }else{
+
+        alert("Login ou senha inválidos");
+    }
+}
+
+function logout(){
+
+    modoEdicao = false;
+
+    document
+    .getElementById("painelEdicao")
+    .classList.add("locked");
+
+    statusLogin.innerHTML =
+        "🔒 Modo visualização ativo";
+
+    atualizarBotoes();
+
+    localStorage.removeItem("loginEstac");
+}
+
+function salvarLogin(){
+
+    localStorage.setItem(
+        "loginEstac",
+        "true"
+    );
+}
+
+function carregarLogin(){
+
+    let l =
+        localStorage.getItem("loginEstac");
+
+    if(l === "true"){
+
+        modoEdicao = true;
+
+        painelEdicao.classList.remove("locked");
+
+        statusLogin.innerHTML =
+            "✅ Modo edição liberado";
+    }
+}
+
+/* =========================
+   MAPA
+========================= */
+
+let scale = 1;
+let posX = 0;
+let posY = 0;
+
+let map = document.getElementById("map");
+let wrap = document.getElementById("mapWrapper");
+
+function updateTransform(){
+
+    map.style.transform =
+        `translate(${posX}px,${posY}px)
+         scale(${scale})`;
+}
+
+/* =========================
+   ZOOM
+========================= */
+
+wrap.onwheel = e => {
+
+    e.preventDefault();
+
+    scale += e.deltaY * -0.001;
+
+    scale =
+        Math.min(
+            Math.max(.5, scale),
+            3
+        );
+
+    updateTransform();
+};
+
+/* =========================
+   PAN MAPA
+========================= */
+
+let isPanning = false;
+let startX;
+let startY;
+
+wrap.addEventListener("mousedown", e => {
+
+    if(e.target.closest(".vaga"))
+        return;
+
+    isPanning = true;
+
+    wrap.style.cursor = "grabbing";
+
+    startX = e.clientX - posX;
+    startY = e.clientY - posY;
+});
+
+document.addEventListener("mousemove", e => {
+
+    if(!isPanning) return;
+
+    posX = e.clientX - startX;
+    posY = e.clientY - startY;
+
+    updateTransform();
+});
+
+document.addEventListener("mouseup", () => {
+
+    isPanning = false;
+
+    wrap.style.cursor = "grab";
+});
+
+/* =========================
+   SISTEMA
+========================= */
+
+let vagaSel = null;
+
+let modoDelete = false;
+let snap = false;
+
+const GRID = 20;
+
+/* =========================
+   DASHBOARD
+========================= */
+
+function dash(){
+
+    let v =
+        document.querySelectorAll(".vaga").length;
+
+    let c =
+        document.querySelectorAll(".carro").length;
+
+    tv.innerText = v;
+    tc.innerText = c;
+
+    oc.innerText = c;
+    lv.innerText = v - c;
+}
+
+/* =========================
+   BOTÕES
+========================= */
+
+function atualizarBotoes(){
+
+    btnDelete.className =
+        modoDelete ? "toggleOn" : "toggleOff";
+
+    btnDelete.innerText =
+        "Excluir " +
+        (modoDelete ? "ON" : "OFF");
+
+    btnSnap.className =
+        snap ? "toggleOn" : "toggleOff";
+
+    btnSnap.innerText =
+        "Snap " +
+        (snap ? "ON" : "OFF");
+
+    document.querySelectorAll(".vaga")
+    .forEach(v=>{
+
+        if(modoEdicao){
+
+            v.classList.add("editando");
+
+        }else{
+
+            v.classList.remove("editando");
+        }
+    });
+}
+
+/* =========================
+   ÁREA
+========================= */
+
+function criarAreaBase(nome){
+
+    let a =
+        document.createElement("div");
+
+    a.className = "area";
+
+    let t =
+        document.createElement("h3");
+
+    t.innerText = nome;
+
+    a.appendChild(t);
+
+    a.onclick = e => {
+
+        if(!modoEdicao)
+            return;
+
+        if(modoDelete)
+            return;
+
+        if(e.target === a){
+
+            let rect =
+                a.getBoundingClientRect();
+
+            let x =
+                (e.clientX - rect.left) / scale;
+
+            let y =
+                (e.clientY - rect.top) / scale;
+
+            if(snap){
+
+                x =
+                    Math.round(x / GRID) * GRID;
+
+                y =
+                    Math.round(y / GRID) * GRID;
+            }
+
+            criarVaga(a, x, y);
+
+            salvar();
+        }
+    };
+
+    map.appendChild(a);
+}
+
+function criarArea(){
+
+    if(!modoEdicao)
+        return alert("Acesso negado");
+
+    let nome = nomeArea.value;
+
+    if(nome){
+
+        criarAreaBase(nome);
+
+        salvar();
+    }
+}
+
+/* =========================
+   VAGAS
+========================= */
+
+function criarVaga(a, x, y){
+
+    let v =
+        document.createElement("div");
+
+    v.className = "vaga";
+
+    v.style.left = x + "px";
+    v.style.top = y + "px";
+
+    v.dataset.rot = 0;
+
+    let dragging = false;
+
+    let offsetX = 0;
+    let offsetY = 0;
+
+    /* DRAG */
+
+    v.addEventListener("mousedown", e => {
+
+        if(!modoEdicao)
+            return;
+
+        e.stopPropagation();
+
+        dragging = true;
+
+        let rect =
+            v.getBoundingClientRect();
+
+        offsetX =
+            e.clientX - rect.left;
+
+        offsetY =
+            e.clientY - rect.top;
+    });
+
+    document.addEventListener("mousemove", e => {
+
+        if(!dragging) return;
+
+        let rectArea =
+            a.getBoundingClientRect();
+
+        let nx =
+            (e.clientX
+            - rectArea.left
+            - offsetX) / scale;
+
+        let ny =
+            (e.clientY
+            - rectArea.top
+            - offsetY) / scale;
+
+        if(snap){
+
+            nx =
+                Math.round(nx / GRID) * GRID;
+
+            ny =
+                Math.round(ny / GRID) * GRID;
+        }
+
+        v.style.left = nx + "px";
+        v.style.top = ny + "px";
+    });
+
+    document.addEventListener("mouseup", () => {
+
+        if(dragging){
+
+            dragging = false;
+
+            salvar();
+        }
+    });
+
+    /* CLICK */
+
+    v.addEventListener("click", e => {
+
+        e.stopPropagation();
+
+        if(dragging) return;
+
+        if(modoDelete && modoEdicao){
+
+            v.remove();
+
+            salvar();
+
+            dash();
+
+            return;
+        }
+
+        vagaSel = v;
+
+        document
+        .querySelectorAll(".vaga")
+        .forEach(x=>x.style.outline="");
+
+        v.style.outline =
+            "2px solid yellow";
+    });
+
+    a.appendChild(v);
+
+    dash();
+
+    return v;
+}
+
+/* =========================
+   CARROS
+========================= */
+
+function addCarro(){
+
+    if(!modoEdicao)
+        return alert("Acesso negado");
+
+    if(!vagaSel)
+        return alert("Selecione uma vaga");
+
+    vagaSel.innerHTML = `
+
+        <div class="carro"
+             style="
+             background:${cor.value};
+             color:${corTexto.value}
+             ">
+
+            ${modelo.value}
+
+            <div class="chassi">
+                ${chassi.value}
+            </div>
+
+        </div>
+    `;
+
+    salvar();
+
+    dash();
+}
+
+function remCarro(){
+
+    if(!modoEdicao)
+        return alert("Acesso negado");
+
+    if(vagaSel){
+
+        vagaSel.innerHTML = "";
+
+        salvar();
+
+        dash();
+    }
+}
+
+function rotacionar(){
+
+    if(!modoEdicao)
+        return alert("Acesso negado");
+
+    if(!vagaSel)
+        return;
+
+    let r =
+        (+vagaSel.dataset.rot + 90) % 360;
+
+    vagaSel.dataset.rot = r;
+
+    vagaSel.style.transform =
+        `rotate(${r}deg)`;
+
+    salvar();
+}
+
+/* =========================
+   TOGGLES
+========================= */
+
+function toggleDelete(){
+
+    if(!modoEdicao)
+        return alert("Acesso negado");
+
+    modoDelete = !modoDelete;
+
+    atualizarBotoes();
+}
+
+function toggleSnap(){
+
+    if(!modoEdicao)
+        return alert("Acesso negado");
+
+    snap = !snap;
+
+    atualizarBotoes();
+}
+
+/* =========================
+   BUSCA
+========================= */
+
+function buscar(){
+
+    let val =
+        busca.value.toLowerCase();
+
+    document.querySelectorAll(".vaga")
+    .forEach(v => {
+
+        let c =
+            v.querySelector(".chassi");
+
+        if(
+            c &&
+            c.innerText
+            .toLowerCase()
+            .includes(val) &&
+            val !== ""
+        ){
+
+            v.style.outline =
+                "3px solid lime";
+
+        }else{
+
+            v.style.outline = "";
+        }
+    });
+}
+
+/* =========================
+   SALVAR
+========================= */
+
+function salvar(){
+
+    let data = [];
+
+    document.querySelectorAll(".area")
+    .forEach(a => {
+
+        let vagas = [];
+
+        a.querySelectorAll(".vaga")
+        .forEach(v => {
+
+            vagas.push({
+
+                x:v.style.left,
+                y:v.style.top,
+
+                html:v.innerHTML,
+
+                rot:v.dataset.rot
+            });
+        });
+
+        data.push({
+
+            nome:
+            a.querySelector("h3").innerText,
+
+            vagas
+        });
+    });
+
+    localStorage.setItem(
+        "estac",
+        JSON.stringify(data)
+    );
+
+    dash();
+}
+
+/* =========================
+   CARREGAR
+========================= */
+
+function carregar(){
+
+    let d =
+        JSON.parse(
+            localStorage.getItem("estac")
+        );
+
+    if(!d) return;
+
+    d.forEach(a => {
+
+        criarAreaBase(a.nome);
+
+        let areas =
+            document.querySelectorAll(".area");
+
+        let atual =
+            areas[areas.length - 1];
+
+        a.vagas.forEach(v => {
+
+            let nv =
+                criarVaga(
+                    atual,
+                    parseInt(v.x),
+                    parseInt(v.y)
+                );
+
+            nv.innerHTML = v.html;
+
+            nv.dataset.rot = v.rot;
+
+            nv.style.transform =
+                `rotate(${v.rot}deg)`;
+        });
+    });
+}
+
+/* =========================
+   RESET
+========================= */
+
+function reset(){
+
+    if(!modoEdicao)
+        return alert("Acesso negado");
+
+    localStorage.removeItem("estac");
+
+    location.reload();
+}
+
+/* =========================
+   INIT
+========================= */
+
+carregar();
+
+carregarLogin();
+
+dash();
+
+atualizarBotoes();
+
+</script>
+
+</body>
+</html>
